@@ -7,10 +7,9 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import Group
 
-class CustomUserManager(BaseUserManager):
-    use_in_migrations = True
 
-    def create_user(self, email, password=None):
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, password=None,first_name=None, last_name=None):
         """
         Creates and saves a User with the given email, date of
         birth and password.
@@ -20,13 +19,15 @@ class CustomUserManager(BaseUserManager):
 
         user = self.model(
             email=self.normalize_email(email),
+            first_name=first_name,
+            last_name=last_name,
         )
 
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None):
+    def create_superuser(self, email, password=None, first_name=None, last_name=None):
         """
         Creates and saves a superuser with the given email, date of
         birth and password.
@@ -34,6 +35,8 @@ class CustomUserManager(BaseUserManager):
         user = self.create_user(
             email,
             password=password,
+            first_name=first_name,
+            last_name=last_name,
         )
         user.is_admin = True
         user.save(using=self._db)
@@ -42,21 +45,24 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractBaseUser,PermissionsMixin):
     class UserRoleOptions(models.TextChoices):
-        REGULAR = "R", ("Regular")
-        EDITOR = "E", ("Editor")
-        MANAGER = "M", ("Manager")
+        AUTHOR = 'author', ('Author')
+        EDITOR = 'editor', ('Editor')
+        SUBSCRIBER = 'subscriber', ('Subscriber')
+        MODERATOR = 'moderator', ('Moderator')
 
     id = models.UUIDField(primary_key = True,default = uuid.uuid4, editable = False) 
     email = models.EmailField(verbose_name="email address",max_length=255,unique=True,)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    date_of_birth = models.DateField(blank=True,null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
-    role = models.CharField(max_length=1,choices=UserRoleOptions.choices, default=UserRoleOptions.REGULAR)
+    role = models.CharField(max_length=12, choices=UserRoleOptions.choices,default=UserRoleOptions.SUBSCRIBER)
+
 
     objects = CustomUserManager()
-
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
-
+    REQUIRED_FIELDS = ["first_name","last_name",]
 
     class Meta:
         verbose_name = "User"
@@ -84,8 +90,7 @@ class CustomUser(AbstractBaseUser,PermissionsMixin):
 
 class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
+    
 
     class Meta:
         verbose_name = "Profile"
